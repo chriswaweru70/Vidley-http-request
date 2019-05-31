@@ -1,71 +1,50 @@
+const startupDebugger = require('debug') ('app:startup');
+const dbDebugger = require('debug') ('app:db');
+const config = require('config');
+const morgan = require('morgan');
+const helmet = require('helmet');
 const Joi = require('joi');
+const logger = require('./middleware/logger');
+const authenticater = require('./middleware/authenticater');
+const genres = require('./routes/genres');
+const home = require('./routes/home');
 const express = require('express');
 const app = express();
 
+app.set('view engine', 'pug');
+app.set('views', './views');   //default
+
+console.log(`NODE_ENV: ${process.env.Node_ENV}`);
+console.log(`app: ${app.get('env')}`);
+
 app.use(express.json());
+app.use(express.urlencoded({ extended:true }));
+app.use(express.static('public'));
+app.use(helmet());
+app.use('/api/genres', genres);
+appp.use('/', home);
 
-const genres = [
-    { id: 1, name: 'Action'},
-    { id: 2, name: 'Romance'},
-    { id: 3, name: 'Science-fiction'},
-    { id: 4, name: 'Horror'}
-];
+// configuration
+console.log('Application Name: ' + config.get('name'));
+console.log('Mail Server: ' + config.get('mail.host'));
+//console.log('Mail Password: ' + config.get('mail.password'));
 
-app.get('/', (req, res) => {
-  res.send('Welcome to Index of Movies');
-});
-
-app.get('/api/genres', (req, res) => {
-    res.send(genres);
-});
-
-app.get('/api/genres/:id', (req, res) => {
-  const genre = genres.find(g => g.id === parseInt(req.params.id));
-  if(!genre) return res.status(404).send('We have no genre with that id!!!!!');
-  res.send(genre);
-});
-
-app.post('/api/genres', (req, res) => {
-   const { error } = validateGenre(req.body);
-   if (error) return res.status(400).send(error.details[0].message);
-
-   const genre = {
-       id: genres.length + 1,
-       name: req.body.name
-   };
-   genres.push(genre)
-   res.send(genre)
-});
-
-app.put('/api/genres/:id', (req, res) => {
-     const genre = genres.find(g => g.id === parseInt(req.params.id));
-     if(!genre) return res.status(404).send('The Genre with the given ID was not found!');
-
-     const { error } = validateGenre(req.body);
-     if (error) return res.status(400).send(error.details[0].message);
-
-     genre.name = req.body.name;
-
-     res.send(genre)
-});
-
-app.delete('/api/genres/:id', (req, res) => {
-   const genre = genres.find(g => g.id === parseInt(req.params.id));
-   if (!genre) return res.status(404).send('We cannot Delete a Genre with this give ID')
-
-   const index = genres.indexOf(genre);
-   genres.splice(index, 1);
-
-   res.send(genre);
-});
-
-function validateGenre(genre) {
-  const schema = {
-    name:Joi.string().min(4).required()
-  };
-  return Joi.validate(genre, schema);
+if (!app.get('env')=== 'development') {
+  app.use(morgan('tiny'));
+  startupDebugger('Morgan enabled')
 }
+
+// Db work...
+
+dbDebugger('Connected to the database...');
+
+
+ app.use(logger);
+
+ //app.use(authenticater);
+
+
 
 const port =process.env.PORT || 3000;
 app.listen(port, () => 
-    console.log(`Listening on Port ${port}...`));
+    console.log(`Listening on port ${port}...`));
